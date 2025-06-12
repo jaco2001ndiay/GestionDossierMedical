@@ -1,6 +1,5 @@
 package com.medical.GestionDossierMedical.security;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -16,37 +15,43 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 public class SecurityConfig {
-    private final CustomUserDetailsService customUserDetailsService ;
-    @Autowired
-    private JwtAuthenticationFilter jwtAuthenticationFilter ;
-    public SecurityConfig(CustomUserDetailsService customUserDetailsService)
-    {
-        this.customUserDetailsService = customUserDetailsService ;
+
+    private final CustomUserDetailsService customUserDetailsService;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    public SecurityConfig(CustomUserDetailsService uds,
+                          JwtAuthenticationFilter jwtFilter) {
+        this.customUserDetailsService = uds;
+        this.jwtAuthenticationFilter = jwtFilter;
     }
+
     @Bean
-    public UserDetailsService userDetailsService()
-    {
+    public UserDetailsService userDetailsService() {
         return customUserDetailsService;
     }
+
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws  Exception
-    {
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .anyRequest().authenticated()
-                ).sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) ;
-        http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-        return http.build() ;
-    }
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception
-    {
-        return authenticationConfiguration.getAuthenticationManager();
-    }
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+                )
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
     }
 }
